@@ -1,0 +1,3 @@
+[console_scripts]
+crypto_predictor = crypto_predictor.main:run_pipeline
+

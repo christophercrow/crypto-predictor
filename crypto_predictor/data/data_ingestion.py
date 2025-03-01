@@ -1,48 +1,52 @@
-"""
-Module to fetch historical cryptocurrency data from CoinGecko.
-"""
-
-import requests
 import pandas as pd
-import os
-from crypto_predictor.utils.config import load_config
+import logging
+from typing import Dict, Any
+from pycoingecko import CoinGeckoAPI
 
-def fetch_crypto_data(crypto_id, vs_currency="usd", days="30"):
+logger = logging.getLogger(__name__)
+
+def ingest_data(data_config: Dict[str, Any]) -> pd.DataFrame:
     """
-    Fetch historical data from CoinGecko for a specific coin.
+    Ingest historical market data from the CoinGecko API.
+
+    Args:
+        data_config: Dictionary with ingestion parameters:
+            - coin_id (str): The CoinGecko coin ID (default: 'bitcoin').
+            - vs_currency (str): The currency to compare against (default: 'usd').
+            - days (str): Number of days to fetch data for. For public API users,
+              this should not exceed 365 days (default: '365').
+
+    Returns:
+        DataFrame: A pandas DataFrame containing timestamp and price data.
     """
-    url = f"https://api.coingecko.com/api/v3/coins/{crypto_id}/market_chart"
-    params = {"vs_currency": vs_currency, "days": days}
-    response = requests.get(url, params=params)
-    response.raise_for_status()
-    data = response.json()
-    prices = data.get("prices", [])
+    coin_id = data_config.get("coin_id", "bitcoin")
+    vs_currency = data_config.get("vs_currency", "usd")
+    days = data_config.get("days", "365")
+
+    # Override 'max' with '365' if necessary, due to public API limitations.
+    if days == "max":
+        logger.warning("Public API users are limited to querying historical data within the past 365 days. Overriding 'max' to '365'.")
+        days = "365"
+    
+    cg = CoinGeckoAPI()
+    logger.info("Fetching market chart data from CoinGecko for coin: %s", coin_id)
+
+    try:
+        market_data = cg.get_coin_market_chart_by_id(id=coin_id, vs_currency=vs_currency, days=days)
+    except Exception as e:
+        logger.error("Error fetching data from CoinGecko: %s", e)
+        raise
+
+    # The API returns data with keys: 'prices', 'market_caps', 'total_volumes'
+    # We'll use the 'prices' key, which is a list of [timestamp, price]
+    prices = market_data.get("prices", [])
+    if not prices:
+        logger.error("No price data returned from CoinGecko for coin: %s", coin_id)
+        raise ValueError("No price data returned from CoinGecko")
+
     df = pd.DataFrame(prices, columns=["timestamp", "price"])
-    df["date"] = pd.to_datetime(df["timestamp"], unit="ms")
-    df = df[["date", "price"]]
+    # Convert timestamp from milliseconds to datetime
+    df["timestamp"] = pd.to_datetime(df["timestamp"], unit="ms")
+
+    logger.info("Data ingestion completed with %d rows", len(df))
     return df
-
-def save_data(df, crypto_id):
-    """
-    Save the fetched DataFrame as CSV.
-    """
-    config = load_config("config/config.yaml")
-    data_dir = config["paths"]["data_dir"]
-    os.makedirs(data_dir, exist_ok=True)
-    file_path = os.path.join(data_dir, f"{crypto_id}_prices.csv")
-    df.to_csv(file_path, index=False)
-    print(f"Data saved to {file_path}")
-
-def fetch_all_coins(coin_list, vs_currency="usd", days="30"):
-    """
-    Fetch data for all coins in coin_list.
-    """
-    for coin in coin_list:
-        print(f"Fetching data for {coin}...")
-        df = fetch_crypto_data(coin, vs_currency, days)
-        save_data(df, coin)
-
-if __name__ == "__main__":
-    config = load_config("config/config.yaml")
-    coin_list = config["dashboard"]["available_coins"]
-    fetch_all_coins(coin_list, days=config["data"]["days"])

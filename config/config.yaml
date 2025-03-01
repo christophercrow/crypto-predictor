@@ -1,16 +1,13 @@
 data:
-  sequence_length: 10
-  api_source: "CoinGecko"
-  days: "90"
+  coin_id: "bitcoin"
+  vs_currency: "usd"
+  days: "365"
 
-model:
-  lstm_units: 50
-  epochs: 20
-  batch_size: 16
+preprocessing:
+  window_size: 60
 
-paths:
-  data_dir: "data"
-  model_dir: "models/saved_models"
-
-dashboard:
-  available_coins: ["bitcoin", "ethereum", "cardano", "dogecoin", "ripple"]
+training:
+  epochs: 10
+  batch_size: 32
+  validation_split: 0.2
+  save_path: "models/saved_model.keras"

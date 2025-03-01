@@ -4,6 +4,7 @@ crypto_predictor/__init__.py
 crypto_predictor.egg-info/PKG-INFO
 crypto_predictor.egg-info/SOURCES.txt
 crypto_predictor.egg-info/dependency_links.txt
+crypto_predictor.egg-info/entry_points.txt
 crypto_predictor.egg-info/requires.txt
 crypto_predictor.egg-info/top_level.txt
 crypto_predictor/dashboard/__init__.py

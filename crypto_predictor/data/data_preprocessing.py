@@ -1,64 +1,48 @@
-"""
-Module for data cleaning and feature engineering.
-"""
-
 import pandas as pd
-import os
-from crypto_predictor.utils.config import load_config
+import numpy as np
+import logging
+from typing import Dict, Any
 
-def load_data(crypto_id):
-    """
-    Load raw CSV data for a coin.
-    """
-    config = load_config("config/config.yaml")
-    data_dir = config["paths"]["data_dir"]
-    file_path = os.path.join(data_dir, f"{crypto_id}_prices.csv")
-    df = pd.read_csv(file_path, parse_dates=["date"])
-    return df
+logger = logging.getLogger(__name__)
 
-def clean_data(df):
+def preprocess_data(data: pd.DataFrame, preprocess_config: Dict[str, Any]) -> pd.DataFrame:
     """
-    Clean the dataset by removing duplicates and forward-filling missing values.
+    Preprocess the raw data for training.
+    Fills missing values and ensures data is sorted by timestamp.
+    
+    Args:
+        data: Raw data as a DataFrame.
+        preprocess_config: Dictionary with preprocessing parameters.
+        
+    Returns:
+        Processed DataFrame.
     """
-    df = df.drop_duplicates()
-    df = df.ffill()
-    return df
+    logger.info("Starting data preprocessing")
+    data = data.copy()
+    data.sort_values("timestamp", inplace=True)
+    # Using ffill() instead of fillna(method="ffill") per FutureWarning
+    data.ffill(inplace=True)
+    logger.info("Data preprocessing completed")
+    return data
 
-def feature_engineering(df):
+def prepare_sequences(data: pd.DataFrame, window_size: int = 60) -> Dict[str, Any]:
     """
-    Add lag features and rolling statistics.
+    Prepare training sequences for LSTM model using a sliding window approach.
+    
+    Args:
+        data: DataFrame with a 'price' column.
+        window_size: Number of time steps to include in each input sequence.
+        
+    Returns:
+        Dictionary with keys 'X_train' and 'y_train'.
     """
-    df = df.sort_values("date")
-    df.set_index("date", inplace=True)
-    for lag in range(1, 4):
-        df[f"price_lag_{lag}"] = df["price"].shift(lag)
-    df["rolling_mean_3"] = df["price"].rolling(window=3).mean()
-    df["rolling_std_3"] = df["price"].rolling(window=3).std()
-    df.dropna(inplace=True)
-    return df
-
-def preprocess_coin(crypto_id):
-    """
-    Preprocess data for a coin and save to CSV.
-    """
-    df = load_data(crypto_id)
-    df_clean = clean_data(df)
-    df_features = feature_engineering(df_clean)
-    config = load_config("config/config.yaml")
-    data_dir = config["paths"]["data_dir"]
-    file_path = os.path.join(data_dir, f"{crypto_id}_prices_preprocessed.csv")
-    df_features.to_csv(file_path)
-    print(f"Preprocessed data saved to {file_path}")
-
-def preprocess_all_coins(coin_list):
-    """
-    Preprocess data for each coin in coin_list.
-    """
-    for coin in coin_list:
-        print(f"Preprocessing data for {coin}...")
-        preprocess_coin(coin)
-
-if __name__ == "__main__":
-    config = load_config("config/config.yaml")
-    coin_list = config["dashboard"]["available_coins"]
-    preprocess_all_coins(coin_list)
+    prices = data["price"].values
+    X, y = [], []
+    for i in range(len(prices) - window_size):
+        X.append(prices[i:i + window_size])
+        y.append(prices[i + window_size])
+    X = np.array(X)
+    y = np.array(y)
+    # Reshape X for LSTM input: (samples, timesteps, features)
+    X = X.reshape(-1, window_size, 1)
+    return {"X_train": X, "y_train": y}

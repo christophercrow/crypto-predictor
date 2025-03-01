@@ -1,26 +1,26 @@
-"""
-Module for building the LSTM model.
-"""
-
 import tensorflow as tf
 from tensorflow.keras.models import Sequential
-from tensorflow.keras.layers import LSTM, Dense, Dropout
+from tensorflow.keras.layers import LSTM, Dense
+from typing import Dict, Any
 
-def build_model(seq_length, lstm_units=50):
+def build_model(training_config: Dict[str, Any]) -> tf.keras.Model:
     """
-    Build an LSTM model for price prediction.
+    Build and compile an LSTM model based on the training configuration.
+    Args:
+        training_config: Dictionary with model parameters.
+    Returns:
+        A compiled TensorFlow Keras model.
     """
-    model = Sequential([
-        tf.keras.layers.Input(shape=(seq_length, 1)),
-        LSTM(lstm_units, return_sequences=True),
-        Dropout(0.2),
-        LSTM(lstm_units),
-        Dropout(0.2),
-        Dense(1)
-    ])
-    model.compile(optimizer="adam", loss="mse")
+    model = Sequential()
+    input_shape = training_config.get("input_shape", (None, 1))
+    lstm_units = training_config.get("lstm_units", 50)
+
+    model.add(LSTM(units=lstm_units, return_sequences=True, input_shape=input_shape))
+    model.add(LSTM(units=lstm_units))
+    model.add(Dense(1))
+    
+    model.compile(
+        optimizer=training_config.get("optimizer", "adam"),
+        loss=training_config.get("loss", "mse")
+    )
     return model
-
-if __name__ == "__main__":
-    model = build_model(seq_length=10)
-    model.summary()

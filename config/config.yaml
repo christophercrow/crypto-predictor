@@ -1,0 +1,16 @@
+data:
+  sequence_length: 10
+  api_source: "CoinGecko"
+  days: "90"
+
+model:
+  lstm_units: 50
+  epochs: 20
+  batch_size: 16
+
+paths:
+  data_dir: "data"
+  model_dir: "models/saved_models"
+
+dashboard:
+  available_coins: ["bitcoin", "ethereum", "cardano", "dogecoin", "ripple"]

@@ -22,8 +22,8 @@ jobs:
       - name: Install dependencies
         run: |
           pip install --upgrade pip
-          pip install -r requirements.txt
-
+          pip install -e .
+      
       - name: Run tests
         run: |
           pytest --maxfail=1 --disable-warnings -q
@@ -31,9 +31,9 @@ jobs:
       - name: Lint with flake8
         run: |
           pip install flake8
-          flake8 src/ tests/
-      
+          flake8 crypto_predictor/ tests/
+
       - name: Check formatting with Black
         run: |
           pip install black
-          black --check src/ tests/
+          black --check crypto_predictor/ tests/
